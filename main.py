@@ -69,14 +69,14 @@ def parse_times(s):
 def fft_modes(N):
     return np.fft.fftfreq(N) * N
 
-def pad_deflection_fft(p_kPa, period, Eeff, m, spec_mult):
+def pad_deflection_fft(p_kPa, spec_mult):
     p = p_kPa * 1e-3  # MPa
     P = np.fft.fft(p)
     W = spec_mult * P
     w = np.fft.ifft(W).real
     return w - w.mean()
 
-def _interval_mask_on_period(x, L, a, b):
+def _interval_mask_on_period(x, a, b):
     return (x >= a) & (x <= b)
 
 def _wrap_intervals(a, b, L):
@@ -104,7 +104,7 @@ def build_k_array(x, period, sel, pattern_mode, line_width,
         for c in centers:
             a, b = c - half, c + half
             for aa, bb in _wrap_intervals(a, b, period):
-                k[_interval_mask_on_period(x, period, aa, bb)] = sel
+                k[_interval_mask_on_period(x, aa, bb)] = sel
         return k
     if pattern_mode == "Custom intervals":
         txt = custom_intervals_str.strip()
@@ -120,10 +120,10 @@ def build_k_array(x, period, sel, pattern_mode, line_width,
                         continue
                     if a <= b:
                         for aa, bb in [(a, b)]:
-                            k[_interval_mask_on_period(x, period, aa, bb)] = sel
+                            k[_interval_mask_on_period(x, aa, bb)] = sel
                     else:
                         for aa, bb in _wrap_intervals(a, b, period):
-                            k[_interval_mask_on_period(x, period, aa, bb)] = sel
+                            k[_interval_mask_on_period(x, aa, bb)] = sel
         return k
     mask = np.abs(x) < (line_width / 2.0)
     k[mask] = sel
@@ -178,7 +178,7 @@ if run:
         target_mean = p_app_kPa
 
         for _ in range(int(max_iter)):
-            w = pad_deflection_fft(p, period, Eeff, m, spec_mult)
+            w = pad_deflection_fft(p, spec_mult)
             d = w - S
             inv_sigma = 1.0 / max(sigma, 1e-12)
             a = -np.maximum(d, 0.0) * inv_sigma
@@ -208,7 +208,7 @@ if run:
         if pm > 0:
             p *= target_mean / pm
         p_kPa = p
-        w = pad_deflection_fft(p_kPa, period, Eeff, m, spec_mult)
+        w = pad_deflection_fft(p_kPa, spec_mult)
         d = w - S
 
         while idx_save < len(times_req) and (abs(tcur - times_req[idx_save]) < 1e-9 or tcur > times_req[idx_save]):
